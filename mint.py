@@ -2,14 +2,14 @@ from algosdk.v2client import algod
 from algosdk import mnemonic, account, transaction
 from algosdk.transaction import wait_for_confirmation
 
-# 🔗 Local Algorand node (AlgoKit LocalNet)
-ALGOD_ADDRESS = "http://localhost:4001"
-ALGOD_TOKEN = "a" * 64
+# 🌐 Algorand TestNet (AlgoNode - FREE, no API key needed)
+ALGOD_ADDRESS = "https://testnet-api.algonode.cloud"
+ALGOD_TOKEN = ""  # no token required
 
-# 🔴 IMPORTANT: Replace with your 25-word mnemonic
+# 🔴 Your wallet mnemonic (keep secret in real apps)
 MNEMONIC = "thunder truth sunset stairs venue action believe coyote purchase fever success salute guitar tunnel live cube omit mesh post sibling work beef service absorb knee"
 
-# Initialize client
+# 🔌 Initialize client
 client = algod.AlgodClient(ALGOD_TOKEN, ALGOD_ADDRESS)
 
 
@@ -24,11 +24,11 @@ def create_certificate(asset_name):
         # 📡 Get suggested params
         params = client.suggested_params()
 
-        # 🪙 Create NFT (ASA)
+        # 🪙 Create NFT (Algorand Standard Asset)
         txn = transaction.AssetConfigTxn(
             sender=sender,
             sp=params,
-            total=1,  # NFT = 1 unit
+            total=1,  # NFT
             default_frozen=False,
             unit_name="CERT",
             asset_name=asset_name,
