@@ -12,69 +12,61 @@ import qrcode
 import base64
 from io import BytesIO
 
-print("🔥 App is starting...")
-
 app = Flask(__name__)
-CORS(app)
+
+# ✅ FIXED CORS (important for Vercel → Render)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 hashes = set()
 
+print("🔥 App started")
 
 # ✅ HEALTH CHECK
 @app.route("/")
 def home():
-    return "Backend running ✅"
+    return jsonify({
+        "success": True,
+        "message": "your server is up and running"
+    })
+
+
+# ✅ DEBUG ROUTE (VERY IMPORTANT)
+@app.route("/upload", methods=["GET"])
+def upload_check():
+    return jsonify({"message": "Upload route is live ✅"})
 
 
 # 🚀 MAIN ROUTE
 @app.route("/upload", methods=["POST"])
 def upload():
-
-    # 📂 FILE VALIDATION
-    if "file" not in request.files:
-        return jsonify({"message": "❌ No file received"}), 400
-
-    file = request.files["file"]
-
-    if file.filename == "":
-        return jsonify({"message": "❌ No file selected"}), 400
-
-    # 📊 FORM DATA
-    name = request.form.get("name")
-    event = request.form.get("event")
-    wallet = request.form.get("wallet")
-
-    if not name or not event:
-        return jsonify({"message": "❌ Name and Event required"}), 400
-
-    if not wallet:
-        return jsonify({"message": "❌ Wallet not connected"}), 400
-
     try:
-        print("\n========== NEW REQUEST ==========")
-        print("📂 File:", file.filename)
-        print("👤 Name:", name)
-        print("🎉 Event:", event)
-        print("🔐 Wallet:", wallet)
+        file = request.files.get("file")
+        name = request.form.get("name")
+        event = request.form.get("event")
 
-        # ✅ SAVE FILE
+        # ✅ validation
+        if not file:
+            return jsonify({"message": "❌ No file received"}), 400
+
+        if not name or not event:
+            return jsonify({"message": "❌ Name and Event required"}), 400
+
+        # 📂 SAVE FILE
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(file_path)
 
-        # 🧠 ML HASH
+        # 🧠 HASH
         img = Image.open(file_path)
         hash_val = str(imagehash.average_hash(img))
-        print("🧠 Hash:", hash_val)
 
         # ❌ DUPLICATE CHECK
         if hash_val in hashes:
-            print("❌ Duplicate detected")
             return jsonify({
                 "message": "❌ Duplicate Certificate Detected"
-            })
+            }), 400
 
         hashes.add(hash_val)
 
@@ -82,53 +74,39 @@ def upload():
         asset_name = f"{name} - {event}"
 
         # 🔥 BLOCKCHAIN MINT
-        try:
-            print("⛓️ Minting NFT:", asset_name)
-            tx_id = create_certificate(asset_name)
-            print("✅ TX ID:", tx_id)
+        tx_id = create_certificate(asset_name)
 
-        except Exception as e:
-            print("❌ Blockchain error:", str(e))
-            return jsonify({
-                "message": "⚠️ Blockchain mint failed",
-                "error": str(e)
-            }), 500
+        # 🔗 EXPLORER (TESTNET)
+        explorer_url = f"https://testnet.algoexplorer.io/tx/{tx_id}"
 
-        # 🔗 EXPLORER LINK (LocalNet)
-        explorer_url = f"http://localhost:8980/v2/transactions/{tx_id}"
+        # 🔗 VERIFY PAGE
+        verify_url = f"https://nirman-verify-ai.vercel.app/verify.html?tx={tx_id}"
 
-        # 📱 VERIFY PAGE (QR LINK)
-        verify_url = f"http://localhost:5500/verify.html?tx={tx_id}"
-
-        # 🔥 GENERATE QR
+        # 🔥 QR GENERATION
         qr = qrcode.make(verify_url)
         buffer = BytesIO()
         qr.save(buffer, format="PNG")
 
         qr_base64 = base64.b64encode(buffer.getvalue()).decode()
 
-        print("✅ SUCCESS RESPONSE SENT\n")
-
-        # ✅ FINAL RESPONSE
+        # ✅ RESPONSE
         return jsonify({
             "message": "✅ Certificate Verified & Minted",
             "tx_id": tx_id,
             "explorer": explorer_url,
             "qr": qr_base64,
             "name": name,
-            "event": event,
-            "wallet": wallet
+            "event": event
         })
 
     except Exception as e:
-        print("❌ General error:", str(e))
+        print("❌ ERROR:", str(e))
         return jsonify({
-            "message": "❌ Error processing file",
+            "message": "❌ Server Error",
             "error": str(e)
         }), 500
 
 
-# 🚀 RUN SERVER
+# 🚀 RUN
 if __name__ == "__main__":
-    print("🚀 Flask running on http://127.0.0.1:5000")
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=10000)
