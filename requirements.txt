@@ -1,0 +1,7 @@
+flask
+flask-cors
+pillow
+imagehash
+qrcode
+py-algorand-sdk
+gunicorn
